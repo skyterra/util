@@ -2,57 +2,82 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
-	"strings"
+	"strconv"
+	"time"
+	"util/schedule"
 )
 
-func main() {
-	data, err := ioutil.ReadFile("data.json")
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	values := FindKeyText(string(data))
-	fmt.Println(values, len(values))
+type DemoTask struct {
+	timestamp int64
 }
 
-func FindKeyText(data string) []string {
-	var v []string
+func (r *DemoTask) RunAt() int64 {
+	return r.timestamp
+}
 
-	readValue := func(str string) (string, int) {
-		var stack []uint8
-		for i := 0; i < len(str); i++ {
-			if i > 0 && str[i] == '"' && str[i-1] != '\\' {
-				if len(stack) > 0 {
-					stack = nil
-				} else {
-					stack = append(stack, str[i])
-				}
-			}
+func (r *DemoTask) Run(s *schedule.TimingSchedule) {
+	t := time.Unix(r.timestamp, 0)
+	fmt.Printf("do demo task. runAt:%s now:%s\n", t.String(), time.Now())
+}
 
-			if len(stack) == 0 && (str[i] == ',' || str[i] == '}') {
-				return str[:i], i
-			}
-		}
+func (r *DemoTask) OnError(err error) {
 
-		return "", 0
+}
+
+type ErrTask struct {
+	timestamp int64
+}
+
+func (r *ErrTask) RunAt() int64 {
+	return r.timestamp
+}
+
+func (r *ErrTask) Run(s *schedule.TimingSchedule) {
+	panic("panic on run ErrTask")
+}
+
+func (r *ErrTask) OnError(err error) {
+	fmt.Println(err)
+	panic("panic on error")
+}
+
+func NewDemoTask(time string) schedule.ITimingTask {
+	t, _ := schedule.NewTodayTime(time)
+	return &DemoTask{timestamp: t}
+}
+
+func NewErrTask(time string) schedule.ITimingTask {
+	t, _ := schedule.NewTodayTime(time)
+	return &ErrTask{timestamp: t}
+}
+
+func GetNextSecondTime() string {
+	now := time.Now().Format(time.RFC3339)
+	hour, _ := strconv.Atoi(now[11:13])
+	min, _ := strconv.Atoi(now[14:16])
+	second, _ := strconv.Atoi(now[17:19])
+
+	if second == 59 && min == 59 {
+		hour++
+		return fmt.Sprintf("%02d:%02d:%02d", hour, min, second)
 	}
 
-	field := "\"text\":"
-	fieldLen := len(field)
-	for i := 0; i < len(data); {
-		if i+fieldLen < len(data) && data[i:i+fieldLen] == field {
-			value, n := readValue(data[i+fieldLen:])
-
-			if value != "" {
-				value = strings.Trim(value, "\n \t")
-				v = append(v, value)
-			}
-			i = i + fieldLen + n
-			continue
-		}
-
-		i++
+	if second == 59 {
+		min++
+		return fmt.Sprintf("%02d:%02d:%02d", hour, min, second)
 	}
-	return v
+
+	second++
+	return fmt.Sprintf("%02d:%02d:%02d", hour, min, second)
+}
+
+func main() {
+	s := schedule.NewTimingSchedule(2, 1, NewErrTask(GetNextSecondTime()))
+	for i := 0; i < 5; i++ {
+		s.Push(NewDemoTask(GetNextSecondTime()))
+	}
+
+	s.Start()
+
+	time.Sleep(3 * time.Second)
 }

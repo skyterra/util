@@ -1,4 +1,4 @@
-package pprof
+package debug
 
 import (
 	"bufio"
@@ -10,10 +10,6 @@ import (
 	"runtime"
 	"runtime/pprof"
 )
-
-func main() {
-
-}
 
 func PprofCPUStart() *os.File {
 	f, err := os.Create("../bin/cpu.pprof")
