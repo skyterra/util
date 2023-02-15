@@ -10,11 +10,7 @@ import (
 	"time"
 )
 
-// 一个按照指定时间执行任务的调度器，用户可以添加ITimingTask类型的任务，并设置执行时间；
-// 当时间达到时，调度器负责执行任务。
-//
-// 调度器的任务队列采用了小顶堆设计，保证了任务调度按照设定时间的先后顺序执行而不是加入调
-// 度器的先后顺序
+// TimingSchedule 一个按照指定时间执行任务的调度器
 
 // 调度器接收的任务接口
 type ITimingTask interface {
@@ -23,7 +19,6 @@ type ITimingTask interface {
 	OnError(err error)
 }
 
-// 使用小顶堆定义任务队列
 type taskQueue []ITimingTask
 
 func (q taskQueue) Len() int {
@@ -51,9 +46,8 @@ func (q *taskQueue) Pop() interface{} {
 	return x
 }
 
-// 调度器对象
 type TimingSchedule struct {
-	shutdown    bool
+	shutdown    chan struct{}
 	workerCount int
 	intervalS   int
 
@@ -63,14 +57,27 @@ type TimingSchedule struct {
 	wg    sync.WaitGroup
 }
 
-// Push 获取调度器中未执行的任务数
+// Len 查看调度器中的任务数量
 func (s *TimingSchedule) Len() int {
 	return len(s.tasks)
 }
 
-// Push 向调度器中添加任务
+// IsShutdown 判断调度器是否处于关闭状态
+func (s *TimingSchedule) IsShutdown() bool {
+	isShutdown := false
+
+	select {
+	case <-s.shutdown:
+		isShutdown = true
+	default:
+	}
+
+	return isShutdown
+}
+
+// Push 向调度器中添加任务，如果调度器处于关闭状态，Push无效
 func (s *TimingSchedule) Push(t ITimingTask) {
-	if s.shutdown {
+	if s.IsShutdown() {
 		return
 	}
 
@@ -91,48 +98,55 @@ func (s *TimingSchedule) pop() ITimingTask {
 	return nil
 }
 
-// 启动调度器
+// Start 启动调度器
 func (s *TimingSchedule) Start() {
 	s.wg.Add(s.workerCount)
 
 	for i := 0; i < s.workerCount; i++ {
 		go func() {
-			var curTask ITimingTask
-			for !s.shutdown {
-				if curTask = s.pop(); curTask != nil {
-					// 为了防止调用task.OnError()发生panic，此处做了异常保护
-					onError := func(r interface{}) {
-						defer func() {
-							recover()
-						}()
+			timer := time.NewTicker(time.Duration(s.intervalS) * time.Second)
+			defer func() {
+				timer.Stop()
+				s.wg.Done()
+			}()
 
-						curTask.OnError(fmt.Errorf("%v", r))
+			for {
+				select {
+				case <-s.shutdown:
+					return
+
+				case <-timer.C:
+					if curTask := s.pop(); curTask != nil {
+						// 为了防止调用task.OnError()发生panic，此处做了异常保护
+						onError := func(r interface{}) {
+							defer func() {
+								recover()
+							}()
+
+							curTask.OnError(fmt.Errorf("%v", r))
+						}
+
+						f := func() {
+							defer func() {
+								if r := recover(); r != nil {
+									onError(r)
+								}
+							}()
+
+							curTask.Run(s)
+						}
+
+						f()
 					}
-
-					f := func() {
-						defer func() {
-							if r := recover(); r != nil {
-								onError(r)
-							}
-						}()
-
-						curTask.Run(s)
-					}
-
-					f()
-				} else {
-					time.Sleep(time.Duration(s.intervalS) * time.Second)
 				}
 			}
-
-			s.wg.Done()
 		}()
 	}
 }
 
-// Shutdown 关闭调度器
+// Shutdown 停止调度器
 func (s *TimingSchedule) Shutdown() {
-	s.shutdown = true
+	close(s.shutdown)
 	s.wg.Wait()
 
 	s.mutex.Lock()
@@ -140,10 +154,9 @@ func (s *TimingSchedule) Shutdown() {
 	s.tasks = nil
 }
 
-// NewTimingSchedule 创建基于具体时间点的调度器
 func NewTimingSchedule(workerCount int, intervalS int, tasks ...ITimingTask) *TimingSchedule {
 	s := &TimingSchedule{
-		shutdown:    false,
+		shutdown:    make(chan struct{}),
 		workerCount: workerCount,
 		intervalS:   intervalS,
 	}
