@@ -45,11 +45,11 @@ var _ = Describe("Convert", func() {
 		It("nil", func() {
 			var b []byte
 			s := BytesToStr(b)
-			
+
 			bHeader := (*reflect.SliceHeader)(unsafe.Pointer(&b))
 			sHeader := (*reflect.SliceHeader)(unsafe.Pointer(&s))
 			Expect(bHeader.Data == sHeader.Data).Should(BeTrue())
-			Expect(bytes.Compare(b,[]byte("hello world")) == 0).Should(BeTrue())
+			Expect(bytes.Compare(b,[]byte("")) == 0).Should(BeTrue())
 		})
 	})
 })
