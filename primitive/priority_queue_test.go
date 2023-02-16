@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"sort"
 	"sync"
+	"testing"
 	"util/primitive"
 )
 
@@ -88,5 +89,22 @@ var _ = Describe("PriorityQueue", func() {
 			Expect(g.Len() == 0).Should(BeTrue())
 		})
 	})
-
 })
+
+func BenchmarkPriorityQueuePush(b *testing.B) {
+	p := primitive.NewPriorityQueue(1024)
+	for i := 0; i < b.N; i++ {
+		p.Push(Number(i))
+	}
+}
+
+func BenchmarkPriorityQueuePop(b *testing.B) {
+	p := primitive.NewPriorityQueue(1024)
+	for i := 0; i < b.N; i++ {
+		p.Push(Number(i))
+	}
+
+	for p.Pop() != nil {
+
+	}
+}
