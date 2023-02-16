@@ -41,7 +41,7 @@ func (q queue) Swap(i, j int) {
 	q[i], q[j] = q[j], q[i]
 }
 
-// 定义线程安全的优先级队列
+// 定义协程安全的优先级队列
 type PriorityQueue struct {
 	locker sync.Mutex
 	q      queue
@@ -49,22 +49,51 @@ type PriorityQueue struct {
 
 // Push 向队列中添加元素
 func (pq *PriorityQueue) Push(element IPriorityElement) {
-	pq.locker.Lock()
-	defer pq.locker.Unlock()
-
 	heap.Push(&pq.q, element)
 }
 
 // Pop 按照优先级从小到达顺序弹出元素
 func (pq *PriorityQueue) Pop() IPriorityElement {
+	if len(pq.q) == 0 {
+		return nil
+	}
+
+	return heap.Pop(&pq.q).(IPriorityElement)
+}
+
+// PopAll 按照优先级从小到达顺序弹出所有元素
+func (pq *PriorityQueue) PopAll() []IPriorityElement {
+	elements := make([]IPriorityElement, 0, len(pq.q))
+
+	for len(pq.q) > 0 {
+		elements = append(elements, heap.Pop(&pq.q).(IPriorityElement))
+	}
+
+	return elements
+}
+
+// SafePush 协程安全，向队列中添加元素
+func (pq *PriorityQueue) SafePush(element IPriorityElement) {
 	pq.locker.Lock()
 	defer pq.locker.Unlock()
 
-	if pq.Len() > 0 {
-		return heap.Pop(&pq.q).(IPriorityElement)
-	}
+	pq.Push(element)
+}
 
-	return nil
+// SafePop 协程安全，按照优先级从小到达顺序弹出元素
+func (pq *PriorityQueue) SafePop() IPriorityElement {
+	pq.locker.Lock()
+	defer pq.locker.Unlock()
+
+	return pq.Pop()
+}
+
+// SafePopAll 协程安全，按照优先级从小到达顺序弹出所有元素
+func (pq *PriorityQueue) SafePopAll() []IPriorityElement {
+	pq.locker.Lock()
+	defer pq.locker.Unlock()
+
+	return pq.PopAll()
 }
 
 // Len 获取优先级队列长度
@@ -73,8 +102,8 @@ func (pq *PriorityQueue) Len() int {
 }
 
 // NewPriorityQueue 构建优先级队列，size为队列容量
-func NewPriorityQueue(size int) *PriorityQueue {
+func NewPriorityQueue(cap int) *PriorityQueue {
 	return &PriorityQueue{
-		q: make([]IPriorityElement, 0, size),
+		q: make([]IPriorityElement, 0, cap),
 	}
 }
