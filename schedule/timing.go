@@ -10,7 +10,9 @@ import (
 	"time"
 )
 
-// TimingSchedule 一个按照指定时间执行任务的调度器
+/*
+ * TimingSchedule 一个按照指定时间执行任务的调度器
+ */
 
 // 调度器接收的任务接口
 type ITimingTask interface {
