@@ -9,23 +9,21 @@ import (
  * 构建优先级队列阻塞队列
  */
 
+// 定义阻塞队列
 type BlockingQueue struct {
 	q *PriorityQueue
 
-	endWait bool
 	maxSize int
 	cond    *sync.Cond
 }
 
+// Len 返回队列长度
 func (bq *BlockingQueue) Len() int {
 	return bq.q.Len()
 }
 
+// TryPush 尝试向队列添加元素（非阻塞）
 func (bq *BlockingQueue) TryPush(element IPriorityElement) error {
-	if bq.endWait {
-		return errors.New("blocking queue has been aborted")
-	}
-
 	bq.cond.L.Lock()
 	defer bq.cond.L.Unlock()
 
@@ -38,33 +36,24 @@ func (bq *BlockingQueue) TryPush(element IPriorityElement) error {
 	return nil
 }
 
+// TryPop 尝试弹出元素（非阻塞）
 func (bq *BlockingQueue) TryPop() IPriorityElement {
-	if bq.endWait {
-		return nil
-	}
-
 	bq.cond.L.Lock()
 	defer bq.cond.L.Unlock()
 
 	return bq.q.Pop()
 }
 
+// TryPopAll 尝试弹出所有元素（非阻塞）
 func (bq *BlockingQueue) TryPopAll() []IPriorityElement {
-	if bq.endWait {
-		return nil
-	}
-
 	bq.cond.L.Lock()
 	defer bq.cond.L.Unlock()
 
 	return bq.q.PopAll()
 }
 
+// Push 向队列通添加元素，如果设置了maxSize且队列已满，则进入等待
 func (bq *BlockingQueue) Push(element IPriorityElement) {
-	if bq.endWait {
-		return
-	}
-
 	bq.cond.L.Lock()
 	if bq.maxSize > 0 && bq.q.Len() == bq.maxSize {
 		bq.cond.Wait()
@@ -74,9 +63,10 @@ func (bq *BlockingQueue) Push(element IPriorityElement) {
 	bq.cond.L.Unlock()
 }
 
+// Push 从队列中弹出元素，如果队列为空，进入等待
 func (bq *BlockingQueue) Pop() IPriorityElement {
 	bq.cond.L.Lock()
-	if !bq.endWait && bq.q.Len() == 0 {
+	if bq.q.Len() == 0 {
 		bq.cond.Wait()
 	}
 
@@ -86,9 +76,10 @@ func (bq *BlockingQueue) Pop() IPriorityElement {
 	return r
 }
 
+// PushAll 从队列中弹出所有元素，如果队列为空，进入等待
 func (bq *BlockingQueue) PopAll() []IPriorityElement {
 	bq.cond.L.Lock()
-	if !bq.endWait && bq.q.Len() == 0 {
+	if bq.q.Len() == 0 {
 		bq.cond.Wait()
 	}
 
@@ -98,8 +89,8 @@ func (bq *BlockingQueue) PopAll() []IPriorityElement {
 	return r
 }
 
+// EndWait 结束所有等待
 func (bq *BlockingQueue) EndWait() {
-	bq.endWait = true
 	bq.cond.Broadcast()
 }
 
