@@ -12,7 +12,7 @@ import (
 
 type Number int
 
-func (n Number) GetPriority() int64 {
+func (n Number) Priority() int64 {
 	return int64(n)
 }
 

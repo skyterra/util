@@ -11,7 +11,7 @@ import (
 
 // 定义优先级元素接口
 type IPriorityElement interface {
-	GetPriority() int64
+	Priority() int64
 }
 
 type queue []IPriorityElement
@@ -34,7 +34,7 @@ func (q *queue) Pop() interface{} {
 }
 
 func (q queue) Less(i, j int) bool {
-	return q[i].GetPriority() < q[j].GetPriority()
+	return q[i].Priority() < q[j].Priority()
 }
 
 func (q queue) Swap(i, j int) {
@@ -53,20 +53,20 @@ func (pq *PriorityQueue) Push(element IPriorityElement) {
 }
 
 // Pop 按照优先级从小到达顺序弹出元素
-func (pq *PriorityQueue) Pop() IPriorityElement {
+func (pq *PriorityQueue) Pop() interface{} {
 	if len(pq.q) == 0 {
 		return nil
 	}
 
-	return heap.Pop(&pq.q).(IPriorityElement)
+	return heap.Pop(&pq.q)
 }
 
 // PopAll 按照优先级从小到达顺序弹出所有元素
-func (pq *PriorityQueue) PopAll() []IPriorityElement {
-	elements := make([]IPriorityElement, 0, len(pq.q))
+func (pq *PriorityQueue) PopAll() []interface{} {
+	elements := make([]interface{}, 0, len(pq.q))
 
 	for len(pq.q) > 0 {
-		elements = append(elements, heap.Pop(&pq.q).(IPriorityElement))
+		elements = append(elements, heap.Pop(&pq.q))
 	}
 
 	return elements
@@ -81,7 +81,7 @@ func (pq *PriorityQueue) SafePush(element IPriorityElement) {
 }
 
 // SafePop 协程安全，按照优先级从小到达顺序弹出元素
-func (pq *PriorityQueue) SafePop() IPriorityElement {
+func (pq *PriorityQueue) SafePop() interface{} {
 	pq.locker.Lock()
 	defer pq.locker.Unlock()
 
@@ -89,7 +89,7 @@ func (pq *PriorityQueue) SafePop() IPriorityElement {
 }
 
 // SafePopAll 协程安全，按照优先级从小到达顺序弹出所有元素
-func (pq *PriorityQueue) SafePopAll() []IPriorityElement {
+func (pq *PriorityQueue) SafePopAll() []interface{} {
 	pq.locker.Lock()
 	defer pq.locker.Unlock()
 
