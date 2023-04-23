@@ -1,90 +1,125 @@
 package primitive
 
-type Node struct {
-	Key   int
-	Value int
+import (
+	"sync"
+	"time"
+)
 
-	Next *Node
-	Pre  *Node
+/*
+ * LRU Cache 使用双向链表管理缓存对象，最近被访问的对象会放到链表尾部，即将被淘汰的对象放到链表头部；
+ * 可以通过 ttl 设置缓存对象对象存活时间，如果对象存活时间超过了 ttl，Get接口会返回nil
+ */
+
+type lruNode struct {
+	timestamp int64
+	key       interface{}
+	value     interface{}
+	pre       *lruNode
+	next      *lruNode
 }
 
-type LruCache struct {
-	cap int
-	m   map[int]*Node
-
-	head *Node
-	tail *Node
+// lru 缓存
+type lru struct {
+	cap   int
+	ttl   int64
+	m     map[interface{}]*lruNode
+	head  *lruNode
+	tail  *lruNode
+	mutex sync.Mutex
 }
 
-func (l *LruCache) Get(key int) int {
-	v, exist := l.m[key]
-	if !exist {
-		return -1
+// NewLRU 创建缓存，cap执行缓存容量，ttl执行缓存对象存活时间，-1关闭ttl
+func NewLRU(cap int, ttlMS int64) *lru {
+	return &lru{
+		cap: cap,
+		ttl: ttlMS,
+		m:   make(map[interface{}]*lruNode),
+	}
+}
+
+// GetLength 获取lru队列长度
+func (lru *lru) GetLength() int {
+	return len(lru.m)
+}
+
+// Get 获取对象
+func (lru *lru) Get(key interface{}) (interface{}, bool) {
+	lru.mutex.Lock()
+	defer lru.mutex.Unlock()
+
+	v, exist := lru.m[key]
+	if !exist || (lru.ttl > 0 && time.Now().UnixNano()/1e6-v.timestamp > lru.ttl) {
+		return nil, false
 	}
 
-	l.adjust(key)
-	return v.Value
+	v.timestamp = time.Now().UnixNano() / 1e6
+	lru.adjust(key)
+
+	return v.value, true
 }
 
-func (l *LruCache) Put(key int, value int) {
-	if _, exist := l.m[key]; exist {
-		l.m[key].Value = value
-		l.adjust(key)
+// Put 添加对象
+func (lru *lru) Put(key interface{}, value interface{}) {
+	lru.mutex.Lock()
+	defer lru.mutex.Unlock()
+
+	// 如果已经存在，则直接更新
+	if _, exist := lru.m[key]; exist {
+		lru.m[key].value = value
+		lru.m[key].timestamp = time.Now().UnixNano() / 1e6
+
+		lru.adjust(key)
 		return
 	}
 
-	node := &Node{Key: key, Value: value}
-	l.m[key] = node
+	node := &lruNode{key: key, value: value, timestamp: time.Now().UnixNano() / 1e6}
+	lru.m[key] = node
 
-	if l.head == nil {
-		l.head = node
-		l.tail = node
+	// lru中第一个元素
+	if lru.head == nil {
+		lru.head = node
+		lru.tail = node
 		return
 	}
 
-	l.tail.Next = node
-	node.Pre = l.tail
-	l.tail = l.tail.Next
+	// 添加到链表尾部
+	lru.tail.next = node
+	node.pre = lru.tail
+	lru.tail = lru.tail.next
 
-	if len(l.m) > l.cap {
-		p := l.head
-		l.head = l.head.Next
-		l.head.Pre = nil
+	// 超出容量，删除头部元素
+	if len(lru.m) > lru.cap {
+		p := lru.head
+		lru.head = lru.head.next
+		lru.head.pre = nil
 
-		p.Next = nil
-		delete(l.m, p.Key)
+		p.next = nil
+		delete(lru.m, p.key)
 	}
 
 	return
 }
 
-func (l *LruCache) adjust(key int) {
-	node := l.m[key]
+func (lru *lru) adjust(key interface{}) {
+	node := lru.m[key]
 
 	// 已经在尾部
-	if node.Next == nil {
+	if node.next == nil {
 		return
 	}
 
 	// 头部
-	if node.Pre == nil {
-		l.head = node.Next
-		l.head.Pre = nil
+	if node.pre == nil {
+		lru.head = node.next
+		lru.head.pre = nil
 	} else {
-		node.Pre.Next = node.Next
-		node.Next.Pre = node.Pre
+		node.pre.next = node.next
+		node.next.pre = node.pre
 	}
 
-	l.tail.Next = node
-	node.Pre = l.tail
+	lru.tail.next = node
+	node.pre = lru.tail
 
-	l.tail = l.tail.Next
-	l.tail.Next = nil
-}
-
-func NewLruCache(cap int) LruCache {
-	return LruCache{
-		cap: cap,
-		m:   make(map[int]*Node),
-	}
+	lru.tail = lru.tail.next
+	lru.tail.next = nil
 }
