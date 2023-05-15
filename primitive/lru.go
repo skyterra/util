@@ -52,9 +52,7 @@ func (lru *lru) Get(key interface{}) (interface{}, bool) {
 		return nil, false
 	}
 
-	v.timestamp = time.Now().UnixNano() / 1e6
 	lru.adjust(key)
-
 	return v.value, true
 }
 

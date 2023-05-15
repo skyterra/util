@@ -1,5 +1,8 @@
 .PHONY: test cover cover-func cover-html clean
 
+local:
+	go build .
+
 # 执行单元测试
 test:
 	go test ./...
