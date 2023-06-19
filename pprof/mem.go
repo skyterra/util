@@ -1,4 +1,4 @@
-package debug
+package pprof
 
 import (
 	"fmt"
@@ -9,6 +9,7 @@ const (
 	Byte = 1
 	KB   = 1024 * Byte
 	MB   = 1024 * KB
+	GB   = 1024 * MB
 )
 
 // PrintMemUsage 打印内存使用情况
@@ -17,12 +18,12 @@ func PrintMemUsage() {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 
-	fmt.Printf("Alloc:%dMB", ByteToMB(m.Alloc))
-	fmt.Printf("  TotalAlloc:%dMB", ByteToMB(m.TotalAlloc))
-	fmt.Printf("  Sys:%dMB", ByteToMB(m.Sys))
-	fmt.Printf("  NumGC:%d\n", m.NumGC)
+	fmt.Printf("Alloc:%dMB", byteToMB(m.Alloc))
+	fmt.Printf("\tTotalAlloc:%dMB", byteToMB(m.TotalAlloc))
+	fmt.Printf("\tSys:%dMB", byteToMB(m.Sys))
+	fmt.Printf("\tNumGC:%d\n", m.NumGC)
 }
 
-func ByteToMB(size uint64) uint64 {
+func byteToMB(size uint64) uint64 {
 	return size / MB
 }

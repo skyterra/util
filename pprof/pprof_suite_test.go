@@ -1,4 +1,4 @@
-package debug
+package pprof
 
 import (
 	"testing"
@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestDebug(t *testing.T) {
+func TestPprof(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Debug Suite")
+	RunSpecs(t, "Pprof Suite")
 }

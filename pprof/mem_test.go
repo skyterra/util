@@ -1,4 +1,4 @@
-package debug
+package pprof
 
 import (
 	. "github.com/onsi/ginkgo"

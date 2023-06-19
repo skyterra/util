@@ -1,25 +1,31 @@
-.PHONY: test cover cover-func cover-html clean
+.PHONY: local test cover cover-func cover-html clean
+
+GO=go1.20.4
+
+local:
+	$(GO) build -ldflags '-w -s' -o bin/util
 
 # 执行单元测试
 test:
-	go test ./...
+	$(GO) test ./...
 
 # 执行benchmark测试
 bench:
-	go test -bench . ./... -run=none
+	$(GO) test -bench . ./... -run=none
 
 # 统计覆盖率
 cover:
-	go test ./... -coverprofile cover.profile
+	$(GO) test ./... -coverprofile cover.profile
 
 # 打开浏览器显示覆盖统计信息
 cover-html:
-	go tool cover -html=cover.profile
+	$(GO) tool cover -html=cover.profile
 
 # 显示函数覆盖统计
 cover-func:
-	go tool cover -func=cover.profile
+	$(GO) tool cover -func=cover.profile
 
 # 清理
 clean:
+	rm -rf ./bin \
 	rm cover.profile
