@@ -1,4 +1,4 @@
-package debug
+package prof
 
 import (
 	"bufio"
@@ -11,7 +11,7 @@ import (
 	"runtime/pprof"
 )
 
-func PprofCPUStart() *os.File {
+func ProfCPUStart() *os.File {
 	f, err := os.Create("../bin/cpu.pprof")
 	if err != nil {
 		log.Fatal(err)
@@ -24,7 +24,7 @@ func PprofCPUStart() *os.File {
 	return f
 }
 
-func PprofCPUStop(f *os.File) {
+func ProfCPUStop(f *os.File) {
 	pprof.StopCPUProfile()
 	defer f.Close()
 

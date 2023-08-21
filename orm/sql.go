@@ -39,6 +39,10 @@ func GetColumns(modelPtr interface{}) ([]interface{}, error) {
 
 // Query 执行sql语句，modelPtr为数据对象的指针
 func Query(ctx context.Context, db *sql.DB, sql string, modelPtr interface{}) ([]interface{}, error) {
+	if reflect.ValueOf(modelPtr).Kind() != reflect.Ptr {
+		return nil, errors.New("need a pointer")
+	}
+
 	rows, err := db.QueryContext(ctx, sql)
 	if err != nil {
 		return nil, err
