@@ -1,4 +1,4 @@
-module util
+module github.com/skyterra/util
 
 go 1.16
 
